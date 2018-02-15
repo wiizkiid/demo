@@ -70,10 +70,40 @@ interface GigabitEthernet0/6
  description LAN/STATE Failover Interface
 !
 interface Management0/0
- shutdown
- no nameif
- no security-level
- no ip address
+ {% if 'ASA1' in item.value["name"] %}
+ nameif {{ asa1mgmtdescription }}
+ {% elif 'ASA2' in item.value["name"] %}
+ nameif {{ asa2mgmtdescription }}
+ {% elif 'ASA3' in item.value["name"] %}
+ nameif {{ asa3mgmtdescription }}
+ {% endif %}
+ {% if 'ASA10' in item.value["name"] %}
+  no security-level
+  no ip address
+  shut
+ {% elif 'ASA11' in item.value["name"] %}
+  no security-level
+  no ip address
+  shut
+ {% elif 'ASA12' in item.value["name"] %}
+  no security-level
+  no ip address
+  shut
+ {% endif %}
+
+{% if 'ASA1' in item.value["name"] %}
+ security-level 100
+ ip address {{ asa1mgmtip }} {{ subnet24 }}
+ no shut
+ {% elif 'ASA2' in item.value["name"] %}
+ security-level 100
+ ip address {{ asa2mgmtip }} {{ subnet24 }}
+  no shut
+ {% elif 'ASA3' in item.value["name"] %}
+ security-level 100
+ ip address {{ asa3mgmtip }} {{ subnet24 }}
+ no shut
+{% endif %}
 !
 dns domain-lookup OUTSIDE
 dns server-group DefaultDNS
