@@ -1,0 +1,15 @@
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  vars_files:
+    - '/etc/ansible/demovars.yml'
+
+    tasks:
+
+    - name: Create Synack main site configurations
+    - template: src=/etc/ansible/demotemplate.j2 dest=/etc/ansible/local_configs/{{ item.key }}.cfg
+    - with_dict: "{{ MAIN.ASA }}"
+
+    - name: Create Synack branch site configurations
+    - template: src=/etc/ansible/demotemplate.j2 dest=/etc/ansible/local_configs/{{ item.key }}_Branch.cfg
+    - with_dict: "{{ BRANCH.ASA }}"

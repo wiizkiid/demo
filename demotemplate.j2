@@ -1,0 +1,163 @@
+!
+license smart
+ feature tier standard
+ throughput level 1G
+{% if 'ASA1' in item.value["name"] %}
+hostname ASA1
+{% elif 'ASA2' in item.value["name"] %}
+hostname ASA2
+{% elif 'ASA3' in item.value["name"] %}
+hostname ASA3
+{% elif 'ASA10' in item.value["name"] %}
+hostname ASA10
+{% elif 'ASA11' in item.value["name"] %}
+hostname ASA11
+{% elif 'ASA12' in item.value["name"] %}
+hostname ASA12
+{% endif %}
+!
+interface GigabitEthernet0/0
+ nameif DMZ
+ security-level 50
+{% if 'ASA1' in item.value["name"] %}
+ip address {{ asa1dmzip }} {{ subnet22 }}
+{% elif 'ASA2' in item.value["name"] %}
+ip address {{ asa2dmzip }} {{ subnet22 }}
+{% elif 'ASA3' in item.value["name"] %}
+ip address {{ asa3dmzip }} {{ subnet22 }}
+{% elif 'ASA10' in item.value["name"] %}
+ip address {{ asa10dmzip }} {{ subnet22 }}
+{% elif 'ASA11' in item.value["name"] %}
+ip address {{ asa11dmzip }} {{ subnet22 }}
+{% elif 'ASA12' in item.value["name"] %}
+ip address {{ asa12dmzip }} {{ subnet22 }}
+{% endif %}
+ no shut
+!
+interface GigabitEthernet0/1
+ nameif INSIDE
+ no security-level
+ no ip address
+ no shut
+!
+interface GigabitEthernet0/1.10
+ vlan 10
+ nameif INSIDE1
+ security-level 100
+ ip address 192.168.10.1 255.255.255.0 standby 192.168.10.2
+ no shut
+!
+interface GigabitEthernet0/2
+ nameif OUTSIDE
+ security-level 0
+{% if 'ASA1' in item.value["name"] %}
+ip address {{ asa1outip }} {{ subnet22 }}
+{% elif 'ASA2' in item.value["name"] %}
+ip address {{ asa2outip }} {{ subnet22 }}
+{% elif 'ASA3' in item.value["name"] %}
+ip address {{ asa3outip }} {{ subnet22 }}
+{% elif 'ASA10' in item.value["name"] %}
+ip address {{ asa10outip }} {{ subnet22 }}
+{% elif 'ASA11' in item.value["name"] %}
+ip address {{ asa11outip }} {{ subnet22 }}
+{% elif 'ASA12' in item.value["name"] %}
+ip address {{ asa12outip }} {{ subnet22 }}
+{% endif %}
+ 
+ no shut
+!
+interface GigabitEthernet0/6
+ description LAN/STATE Failover Interface
+!
+interface Management0/0
+ shutdown
+ no nameif
+ no security-level
+ no ip address
+!
+dns domain-lookup OUTSIDE
+dns server-group DefaultDNS
+ name-server 8.8.8.8
+ name-server 192.168.0.1
+same-security-traffic permit inter-interface
+same-security-traffic permit intra-interface
+object network INSIDE_HOSTS
+ subnet 192.168.10.0 255.255.255.0
+object service ICMP
+ service icmp
+object network MAIN-SITE-HOST
+ host 192.168.10.10
+object network MAIN-SITE-HOST-NAT
+ host 209.165.100.4
+object network BRANCH-PUBIP
+ host 209.165.100.11
+object network FMC
+ host 10.1.1.20
+object-group service INTERNET_TRAFFIC
+ service-object tcp destination eq https
+ service-object tcp-udp destination eq www
+object-group service DNS
+ service-object tcp-udp destination eq domain
+access-list INSIDE extended permit object-group DNS object INSIDE_HOSTS any
+access-list INSIDE extended permit icmp object MAIN-SITE-HOST any
+access-list INSIDE extended permit object-group INTERNET_TRAFFIC object INSIDE_HOSTS any
+access-list OUTSIDE extended permit icmp object BRANCH-PUBIP object MAIN-SITE-HOST
+access-list DMZ extended permit tcp object FMC object INSIDE_HOSTS
+failover
+failover lan unit primary
+failover lan interface FAILOVER GigabitEthernet0/6
+failover key cisco
+failover replication http
+failover link FAILOVER GigabitEthernet0/6
+failover interface ip FAILOVER 10.0.0.1 255.255.255.0 standby 10.0.0.2
+monitor-interface INSIDE1
+!
+object network MAIN-SITE-HOST
+ nat (INSIDE1,OUTSIDE) static MAIN-SITE-HOST-NAT
+access-group DMZ in interface DMZ
+access-group INSIDE in interface INSIDE1
+access-group OUTSIDE in interface OUTSIDE
+route OUTSIDE 0.0.0.0 0.0.0.0 209.165.100.3 1
+aaa-server TACACS+ protocol tacacs+
+aaa-server TACACS+ (DMZ) host 10.1.1.10
+ key cisco123
+aaa authentication enable console TACACS+ LOCAL
+aaa authentication ssh console TACACS+ LOCAL
+aaa authentication login-history
+no snmp-server location
+no snmp-server contact
+!
+class-map inspection_default
+ match default-inspection-traffic
+!
+!
+policy-map type inspect dns migrated_dns_map_1
+ parameters
+  message-length maximum client auto
+  message-length maximum 512
+  no tcp-inspection
+policy-map global_policy
+ class inspection_default
+  inspect dns migrated_dns_map_1
+  inspect ftp
+  inspect h323 h225
+  inspect h323 ras
+  inspect ip-options
+  inspect netbios
+  inspect rsh
+  inspect rtsp
+  inspect skinny
+  inspect esmtp
+  inspect sqlnet
+  inspect sunrpc
+  inspect tftp
+  inspect sip
+  inspect xdmcp
+  inspect icmp
+policy-map type inspect dns migrated_dns_map_2
+ parameters
+  message-length maximum client auto
+  message-length maximum 512
+  no tcp-inspection
+!
+service-policy global_policy global
